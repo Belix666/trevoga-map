@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Карта воздушных угроз</title>
+<style>
+:root{--bg:#f6f6f4;--fg:#1a1a1a;--mut:#6b6b6b;--card:#fff;--bd:#e2e2de;--none:#e6e6e2;--red:#e5484d;--org:#f76b15;--yel:#f5c518;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101113;--fg:#ececec;--mut:#9a9a9a;--card:#1a1b1e;--bd:#2b2d31;--none:#26282c;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101113;--fg:#ececec;--mut:#9a9a9a;--card:#1a1b1e;--bd:#2b2d31;--none:#26282c;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:760px;margin-inline:auto;padding:16px}
+h1{font-size:20px;margin:0 0 2px;padding-right:52px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:12px}
+#theme{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:10;width:42px;height:42px;border-radius:50%;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-size:20px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.leg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:4px 10px;font-size:13px}
+.dot{width:10px;height:10px;border-radius:50%}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
+.scroll{overflow-x:auto;padding-bottom:6px}
+.grid{display:grid;grid-template-columns:repeat(19,34px);grid-auto-rows:34px;gap:3px;width:max-content}
+.t{border:0;border-radius:6px;background:var(--none);color:var(--mut);font-size:9px;font-weight:600;padding:0;cursor:pointer;font-family:inherit}
+.t.s1{background:var(--yel);color:#2a2200}
+.t.s2{background:var(--org);color:#fff}
+.t.s3{background:var(--red);color:#fff;animation:p 1.6s infinite}
+.t.sel{outline:2px solid var(--fg);outline-offset:1px}
+@keyframes p{50%{opacity:.7}}
+.hint{font-size:12px;color:var(--mut);margin-top:6px}
+.nm{font-weight:600}
+</style>
+</head>
+<body>
+<button id="theme" type="button" aria-label="Переключить тему" title="Переключить тему">🌙</button>
+<h1>Карта воздушных угроз</h1>
+<div class="sub" id="upd">Данные из Telegram-каналов · обновляется примерно каждые 5 минут · угроза снимается после отбоя или через 45 мин</div>
+<div class="leg" id="leg"></div>
+<div class="card">
+  <div class="scroll"><div class="grid" id="grid"></div></div>
+  <div class="hint">Схематичная карта: каждая плитка — один регион. Листайте вправо — Сибирь и Дальний Восток.</div>
+</div>
+<div class="card" id="info">Нажмите на плитку, чтобы увидеть детали.</div>
+<script>
+let R=[];
+const mk=l=>{const [c,n,x,y]=l.split(",");return{c,n,x:+x,y:+y}};
+const P={missile:3,uav:2,balloon:1},LBL={3:"Ракетная опасность",2:"Угроза БПЛА",1:"МВШ (воздушный шар)"};
+const st={};let sel=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const themeBtn=$("theme"),themeMedia=matchMedia("(prefers-color-scheme: dark)");
+const storedTheme=localStorage.getItem("trevoga_theme");
+if(storedTheme==="light"||storedTheme==="dark")document.documentElement.dataset.theme=storedTheme;
+const currentTheme=()=>{const t=document.documentElement.dataset.theme;return t==="light"||t==="dark"?t:(themeMedia.matches?"dark":"light")};
+function paintTheme(){const dark=currentTheme()==="dark";themeBtn.textContent=dark?"🌙":"☀️";themeBtn.title=dark?"Включить светлую тему":"Включить тёмную тему";themeBtn.setAttribute("aria-label",themeBtn.title)}
+themeBtn.onclick=()=>{const next=currentTheme()==="dark"?"light":"dark";document.documentElement.dataset.theme=next;localStorage.setItem("trevoga_theme",next);paintTheme()};
+themeMedia.addEventListener?.("change",()=>{if(!localStorage.getItem("trevoga_theme"))paintTheme()});
+paintTheme();
+const ago=ts=>{const m=Math.max(0,Math.round((Date.now()-ts)/60000));if(m<1)return"только что";if(m<60)return m+" мин назад";const h=Math.round(m/60);if(h<24)return h+" ч назад";return Math.round(h/24)+" дн назад"};
+function render(){
+  const g=$("grid");g.innerHTML="";const cnt={1:0,2:0,3:0};
+  R.forEach(r=>{const b=document.createElement("button"),e=st[r.c],a=e?e.p:0;if(a)cnt[a]++;
+    b.className="t"+(a?" s"+a:"")+(sel===r.c?" sel":"");b.textContent=r.c;b.title=r.n;b.style.gridColumn=r.x+1;b.style.gridRow=r.y+1;
+    b.onclick=()=>{sel=r.c;render()};g.appendChild(b)});
+  $("leg").innerHTML=[[3,"var(--red)","Ракеты"],[2,"var(--org)","БПЛА"],[1,"var(--yel)","МВШ"]].map(([k,c,n])=>`<div class="chip"><span class="dot" style="background:${c}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+`<div class="chip"><span class="dot" style="background:var(--none)"></span>Нет угрозы</div>`;
+  if(sel){const r=R.find(x=>x.c===sel),e=st[sel]||null;
+    let h=`<div class="nm">${esc(r.n)}</div>`;
+    h+=e?`<div>${LBL[e.p]} · ${ago(e.ts)}</div><div class="sub" style="margin:4px 0 0">${esc(e.src)}: «${esc(e.text)}»</div>`:`<div class="sub" style="margin:0">Активных угроз нет</div>`;
+    $("info").innerHTML=h}
+}
+async function load(){
+  try{
+    const j=await (await fetch("state.json?t="+Date.now(),{cache:"no-store"})).json();
+    Object.keys(st).forEach(k=>delete st[k]);
+    Object.assign(st,j.state||{});
+    if(j.updated)$("upd").textContent=`Данные из Telegram-каналов · обновлено ${ago(j.updated)} · угроза снимается после отбоя или через 45 мин`;
+  }catch(e){}
+  render();
+}
+fetch("regions.csv?t="+Date.now()).then(r=>r.text()).then(t=>{R=t.trim().split("\n").map(mk);load();setInterval(load,60000);setInterval(render,30000)});
+</script>
+</body>
+</html>
