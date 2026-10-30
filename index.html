@@ -19,12 +19,14 @@ h1{font-size:20px;margin:0 0 2px;padding-right:52px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
 .scroll{overflow-x:auto;padding-bottom:6px}
 .grid{display:grid;grid-template-columns:repeat(19,34px);grid-auto-rows:34px;gap:3px;width:max-content}
-.t{border:0;border-radius:6px;background:var(--none);color:var(--mut);font-size:9px;font-weight:600;padding:0;cursor:pointer;font-family:inherit}
+.t{position:relative;border:0;border-radius:6px;background:var(--none);color:var(--mut);font-size:9px;font-weight:600;padding:0;cursor:pointer;font-family:inherit}
 .t.s1{background:var(--yel);color:#2a2200}
 .t.s2{background:var(--org);color:#fff}
 .t.s3{background:var(--red);color:#fff;animation:p 1.6s infinite}
 .t.sel{outline:2px solid var(--fg);outline-offset:1px}
 @keyframes p{50%{opacity:.7}}
+.smk{position:absolute;left:50%;top:-4px;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#4a4a4a 0%,rgba(90,90,90,.6) 45%,transparent 70%);transform:translateX(-50%);animation:smk 3s infinite ease-out;pointer-events:none}
+@keyframes smk{0%{opacity:.9;transform:translate(-50%,0) scale(.6)}100%{opacity:0;transform:translate(-50%,-24px) scale(1.8)}}
 .hint{font-size:12px;color:var(--mut);margin-top:6px}
 .nm{font-weight:600}
 </style>
@@ -40,7 +42,7 @@ h1{font-size:20px;margin:0 0 2px;padding-right:52px}
 </div>
 <div class="card" id="info">Нажмите на плитку, чтобы увидеть детали.</div>
 <script>
-let R=[];
+let R=[];let shots={};
 const mk=l=>{const [c,n,x,y]=l.split(",");return{c,n,x:+x,y:+y}};
 const P={missile:3,uav:2,balloon:1},LBL={3:"Ракетная опасность",2:"Угроза БПЛА",1:"МВШ (воздушный шар)"};
 const st={};let sel=null;
@@ -59,6 +61,7 @@ function render(){
   const g=$("grid");g.innerHTML="";const cnt={1:0,2:0,3:0};
   R.forEach(r=>{const b=document.createElement("button"),e=st[r.c],a=e?e.p:0;if(a)cnt[a]++;
     b.className="t"+(a?" s"+a:"")+(sel===r.c?" sel":"");b.textContent=r.c;b.title=r.n;b.style.gridColumn=r.x+1;b.style.gridRow=r.y+1;
+    if(shots[r.c]&&Date.now()-shots[r.c]<15*60000){const s=document.createElement("span");s.className="smk";b.appendChild(s)}
     b.onclick=()=>{sel=r.c;render()};g.appendChild(b)});
   $("leg").innerHTML=[[3,"var(--red)","Ракеты"],[2,"var(--org)","БПЛА"],[1,"var(--yel)","МВШ"]].map(([k,c,n])=>`<div class="chip"><span class="dot" style="background:${c}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+`<div class="chip"><span class="dot" style="background:var(--none)"></span>Нет угрозы</div>`;
   if(sel){const r=R.find(x=>x.c===sel),e=st[sel]||null;
@@ -71,6 +74,7 @@ async function load(){
     const j=await (await fetch("state.json?t="+Date.now(),{cache:"no-store"})).json();
     Object.keys(st).forEach(k=>delete st[k]);
     Object.assign(st,j.state||{});
+    shots=j.shots||{};
     if(j.updated)$("upd").textContent=`Данные из Telegram-каналов · обновлено ${ago(j.updated)} · угроза снимается после отбоя или через 45 мин`;
   }catch(e){}
   render();
