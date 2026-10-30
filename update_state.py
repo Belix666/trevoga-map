@@ -8,9 +8,12 @@ BASE = Path(__file__).resolve().parent
 STATE = BASE / "state.json"
 CHANNELS = ["radarrussiia", "kupolrussia", "locatorru"]
 TTL = 45 * 60 * 1000
+SMOKE_TTL = 15 * 60 * 1000
 P = {"missile": 3, "uav": 2, "balloon": 1}
 ACTIVE = (r"опасност|тревог|угроз|внимани|налет|атак|пуск|летит|летят|"
           r"(?<![а-я])курс(?!к)|направлен|движет|угрожа|взрыв|работает пво|фиксац|активност|ударн")
+SUMMARY = r"за ночь|за сутки|за прошедш|итог|всего|над морем|в море|акватор|черн\w* мор|азов\w* мор"
+SHOT = r"сбит|сбили|сбита|сбиты|уничтожен|перехват"
 
 REGIONS = []
 with open(BASE / "regions.csv", encoding="utf-8") as f:
@@ -21,9 +24,11 @@ with open(BASE / "regions.csv", encoding="utf-8") as f:
 def detect(low):
     if re.search(r"отбой|снят|миновал|отмен", low):
         return "clear"
-    if not re.search(ACTIVE, low):
+    if re.search(SUMMARY, low):
         return None
-    if re.search(r"за прошедш|за ночь|за сутки|итоги|уничтожен|сбит|перехват", low):
+    if re.search(SHOT, low):
+        return "shot"
+    if not re.search(ACTIVE, low):
         return None
     if "ракет" in low:
         return "missile"
@@ -50,7 +55,7 @@ def fetch(ch):
         out.append((int(post.split("/")[1]), ts, ch, "\n".join(lines).strip()))
     return out
 
-def apply(state, ts, ch, text, now):
+def apply(state, shots, ts, ch, text, now):
     if now - ts * 1000 > TTL:
         return
     for block in re.split(r"\n\s*\n", text):
@@ -64,7 +69,10 @@ def apply(state, ts, ch, text, now):
         for code, rx in REGIONS:
             if not rx.search(low):
                 continue
-            if kind == "clear":
+            if kind == "shot":
+                if now - ts * 1000 <= SMOKE_TTL:
+                    shots[code] = max(shots.get(code, 0), ts * 1000)
+            elif kind == "clear":
                 state.pop(code, None)
             else:
                 cur = state.get(code)
@@ -74,8 +82,10 @@ def apply(state, ts, ch, text, now):
 
 def main():
     data = (json.loads(STATE.read_text(encoding="utf-8"))
-            if STATE.exists() else {"state": {}, "seen": {}})
-    state, seen = data.get("state", {}), data.get("seen", {})
+            if STATE.exists() else {})
+    state = data.get("state", {})
+    seen = data.get("seen", {})
+    shots = data.get("shots", {})
     now = time.time() * 1000
 
     new = []
@@ -89,15 +99,20 @@ def main():
             print("ошибка", ch, e)
 
     for ts, c, text in sorted(new):
-        apply(state, ts, c, text, now)
+        apply(state, shots, ts, c, text, now)
 
     for code in list(state):
         if now - state[code]["ts"] > TTL:
             del state[code]
+    for code in list(shots):
+        if now - shots[code] > SMOKE_TTL:
+            del shots[code]
 
-    STATE.write_text(json.dumps({"updated": int(now), "state": state, "seen": seen},
+    STATE.write_text(json.dumps({"updated": int(now), "state": state,
+                                 "seen": seen, "shots": shots},
                                 ensure_ascii=False), encoding="utf-8")
-    print("новых постов:", len(new), "активных регионов:", len(state))
+    print("новых постов:", len(new), "активных регионов:", len(state),
+          "дымов:", len(shots))
 
 if __name__ == "__main__":
     main()
