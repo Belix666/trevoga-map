@@ -5,30 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Карта воздушных угроз</title>
 <style>
-:root{--bg:#f6f6f4;--fg:#1a1a1a;--mut:#6b6b6b;--card:#fff;--bd:#e2e2de;--none:#e6e6e2;--red:#e5484d;--org:#f76b15;--yel:#f5c518;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101113;--fg:#ececec;--mut:#9a9a9a;--card:#1a1b1e;--bd:#2b2d31;--none:#26282c;color-scheme:dark}}
-:root[data-theme="dark"]{--bg:#101113;--fg:#ececec;--mut:#9a9a9a;--card:#1a1b1e;--bd:#2b2d31;--none:#26282c;color-scheme:dark}
+:root{--bg:#f6f6f4;--fg:#1a1a1a;--mut:#6b6b6b;--card:#fff;--bd:#e2e2de;--land:#e9ecef;--land-st:#9aa1a9;--red:#e5484d;--org:#f76b15;--yel:#f5c518;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101113;--fg:#ececec;--mut:#9a9a9a;--card:#1a1b1e;--bd:#2b2d31;--land:#26282c;--land-st:#4a4d54;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101113;--fg:#ececec;--mut:#9a9a9a;--card:#1a1b1e;--bd:#2b2d31;--land:#26282c;--land-st:#4a4d54;color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:760px;margin-inline:auto;padding:16px}
-h1{font-size:20px;margin:0 0 2px;padding-right:52px}
-.sub{color:var(--mut);font-size:13px;margin-bottom:12px}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:860px;margin-inline:auto;padding:14px}
+h1{font-size:19px;margin:0 0 2px;padding-right:52px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:10px}
 #theme{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));right:12px;z-index:10;width:42px;height:42px;border-radius:50%;border:1px solid var(--bd);background:var(--card);color:var(--fg);font-size:20px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.leg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.leg{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
 .chip{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:999px;padding:4px 10px;font-size:13px}
 .dot{width:10px;height:10px;border-radius:50%}
-.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:12px;margin-bottom:12px}
-.scroll{overflow-x:auto;padding-bottom:6px}
-.grid{display:grid;grid-template-columns:repeat(19,34px);grid-auto-rows:34px;gap:3px;width:max-content}
-.t{position:relative;border:0;border-radius:6px;background:var(--none);color:var(--mut);font-size:9px;font-weight:600;padding:0;cursor:pointer;font-family:inherit}
-.t.s1{background:var(--yel);color:#2a2200}
-.t.s2{background:var(--org);color:#fff}
-.t.s3{background:var(--red);color:#fff;animation:p 1.6s infinite}
-.t.sel{outline:2px solid var(--fg);outline-offset:1px}
-@keyframes p{50%{opacity:.7}}
-.smk{position:absolute;left:50%;top:-4px;width:12px;height:12px;border-radius:50%;background:radial-gradient(circle,#4a4a4a 0%,rgba(90,90,90,.6) 45%,transparent 70%);transform:translateX(-50%);animation:smk 3s infinite ease-out;pointer-events:none}
-@keyframes smk{0%{opacity:.9;transform:translate(-50%,0) scale(.6)}100%{opacity:0;transform:translate(-50%,-24px) scale(1.8)}}
-.hint{font-size:12px;color:var(--mut);margin-top:6px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:6px;margin-bottom:10px}
+.ctl{display:flex;gap:6px;justify-content:flex-end;margin:4px 4px 6px}
+.ctl button{border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;width:38px;height:34px;font:600 16px system-ui;cursor:pointer}
+.mapwrap{overflow:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+svg{display:block;width:100%;height:auto;touch-action:pan-x pan-y}
+.reg{fill:var(--land);stroke:var(--land-st);stroke-width:.8;cursor:pointer;transition:fill .3s}
+.reg:hover{stroke:var(--fg);stroke-width:1.2}
+.reg.s1{fill:var(--yel)}
+.reg.s2{fill:var(--org)}
+.reg.s3{fill:var(--red);animation:pulse 1.6s infinite}
+.reg.sel{stroke:var(--fg);stroke-width:2}
+@keyframes pulse{50%{opacity:.7}}
+.smk{fill:#555;opacity:0;pointer-events:none;animation:smk 3s infinite ease-out}
+@keyframes smk{0%{opacity:.85;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-22px) scale(1.8)}}
+#info{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:10px}
 .nm{font-weight:600}
+.att{font-size:11px;color:var(--mut);margin-top:6px}
 </style>
 </head>
 <body>
@@ -37,17 +41,24 @@ h1{font-size:20px;margin:0 0 2px;padding-right:52px}
 <div class="sub" id="upd">Данные из Telegram-каналов · угроза снимается после отбоя, без отбоя не дольше 12 ч</div>
 <div class="leg" id="leg"></div>
 <div class="card">
-  <div class="scroll"><div class="grid" id="grid"></div></div>
-  <div class="hint">Схематичная карта: каждая плитка — один регион. Листайте вправо — Сибирь и Дальний Восток.</div>
+  <div class="ctl"><button id="zin" type="button" aria-label="Приблизить">+</button><button id="zout" type="button" aria-label="Отдалить">−</button><button id="zreset" type="button" aria-label="Сбросить масштаб">⟲</button></div>
+  <div class="mapwrap" id="wrap"><svg id="map" role="img" aria-label="Карта регионов России"></svg></div>
+  <div class="att">Границы: Natural Earth (public domain)</div>
 </div>
-<div class="card" id="info">Нажмите на плитку, чтобы увидеть детали.</div>
+<div id="info">Нажмите на область, чтобы увидеть детали.</div>
 <script>
-let R=[];let shots={};
-const mk=l=>{const [c,n,x,y]=l.split(",");return{c,n,x:+x,y:+y}};
-const P={missile:3,uav:2,balloon:1},LBL={3:"Ракетная опасность",2:"Угроза БПЛА",1:"МВШ (воздушный шар)"};
-const st={};let sel=null;
+const NS="http://www.w3.org/2000/svg";
+const LBL={3:"Ракетная опасность",2:"Угроза БПЛА",1:"МВШ (воздушный шар)"};
+const COL={3:"var(--red)",2:"var(--org)",1:"var(--yel)"};
+const TTL=12*60*60*1000,SMOKE=15*60000;
+let GEO=null,st={},shots={},sel=null,zoom=1;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ago=ts=>{const m=Math.max(0,Math.round((Date.now()-ts)/60000));if(m<1)return"только что";if(m<60)return m+" мин назад";const h=Math.round(m/60);if(h<24)return h+" ч назад";return Math.round(h/24)+" дн назад"};
+const live=c=>st[c]&&Date.now()-st[c].ts<TTL;
+const lvl=c=>live(c)?st[c].p:0;
+
+// тема
 const themeBtn=$("theme"),themeMedia=matchMedia("(prefers-color-scheme: dark)");
 const storedTheme=localStorage.getItem("trevoga_theme");
 if(storedTheme==="light"||storedTheme==="dark")document.documentElement.dataset.theme=storedTheme;
@@ -56,30 +67,67 @@ function paintTheme(){const dark=currentTheme()==="dark";themeBtn.textContent=da
 themeBtn.onclick=()=>{const next=currentTheme()==="dark"?"light":"dark";document.documentElement.dataset.theme=next;localStorage.setItem("trevoga_theme",next);paintTheme()};
 themeMedia.addEventListener?.("change",()=>{if(!localStorage.getItem("trevoga_theme"))paintTheme()});
 paintTheme();
-const ago=ts=>{const m=Math.max(0,Math.round((Date.now()-ts)/60000));if(m<1)return"только что";if(m<60)return m+" мин назад";const h=Math.round(m/60);if(h<24)return h+" ч назад";return Math.round(h/24)+" дн назад"};
+
+// масштаб: ширина svg = zoom * ширина контейнера, прокрутка внутри
+function applyZoom(){const w=$("wrap").clientWidth;const s=$("map");s.style.width=(w*zoom)+"px"}
+$("zin").onclick=()=>{zoom=Math.min(4,zoom*1.4);applyZoom()};
+$("zout").onclick=()=>{zoom=Math.max(1,zoom/1.4);applyZoom()};
+$("zreset").onclick=()=>{zoom=1;applyZoom();$("wrap").scrollTo({left:0,top:0})};
+window.addEventListener("resize",applyZoom);
+
+function ringsOf(g){return g.type==="Polygon"?[g.coordinates]:g.coordinates}
+function draw(){
+  const svg=$("map");
+  svg.innerHTML="";
+  if(!GEO)return;
+  svg.setAttribute("viewBox",`0 0 ${GEO.meta.width} ${GEO.meta.height}`);
+  GEO.features.forEach(f=>{
+    const code=f.properties.code,a=lvl(code);
+    const grp=document.createElementNS(NS,"g");
+    let d="";
+    ringsOf(f.geometry).forEach(poly=>poly.forEach(r=>{d+="M"+r.map(p=>p[0]+" "+p[1]).join("L")+"Z"}));
+    const path=document.createElementNS(NS,"path");
+    path.setAttribute("d",d);
+    path.setAttribute("fill-rule","evenodd");
+    path.setAttribute("class","reg"+(a?" s"+a:"")+(sel===code?" sel":""));
+    path.addEventListener("click",()=>{sel=code;render()});
+    const t=document.createElementNS(NS,"title");t.textContent=f.properties.name;path.appendChild(t);
+    grp.appendChild(path);
+    if(shots[code]&&Date.now()-shots[code]<SMOKE){
+      const b=path.getBBox();
+      const c=document.createElementNS(NS,"circle");
+      c.setAttribute("cx",b.x+b.width/2);c.setAttribute("cy",b.y+b.height/2);
+      c.setAttribute("r",Math.max(4,Math.min(b.width,b.height)/5));
+      c.setAttribute("class","smk");grp.appendChild(c);
+    }
+    svg.appendChild(grp);
+  });
+}
 function render(){
-  const g=$("grid");g.innerHTML="";const cnt={1:0,2:0,3:0};
-  R.forEach(r=>{const b=document.createElement("button"),e=st[r.c],a=e?e.p:0;if(a)cnt[a]++;
-    b.className="t"+(a?" s"+a:"")+(sel===r.c?" sel":"");b.textContent=r.c;b.title=r.n;b.style.gridColumn=r.x+1;b.style.gridRow=r.y+1;
-    if(shots[r.c]&&Date.now()-shots[r.c]<15*60000){const s=document.createElement("span");s.className="smk";b.appendChild(s)}
-    b.onclick=()=>{sel=r.c;render()};g.appendChild(b)});
-  $("leg").innerHTML=[[3,"var(--red)","Ракеты"],[2,"var(--org)","БПЛА"],[1,"var(--yel)","МВШ"]].map(([k,c,n])=>`<div class="chip"><span class="dot" style="background:${c}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+`<div class="chip"><span class="dot" style="background:var(--none)"></span>Нет угрозы</div>`;
-  if(sel){const r=R.find(x=>x.c===sel),e=st[sel]||null;
-    let h=`<div class="nm">${esc(r.n)}</div>`;
-    h+=e?`<div>${LBL[e.p]} · ${ago(e.ts)}</div><div class="sub" style="margin:4px 0 0">${esc(e.src)}: «${esc(e.text)}»</div>`:`<div class="sub" style="margin:0">Активных угроз нет</div>`;
-    $("info").innerHTML=h}
+  draw();
+  const cnt={1:0,2:0,3:0};Object.keys(st).forEach(c=>{if(live(c))cnt[st[c].p]++});
+  $("leg").innerHTML=[[3,"Ракеты"],[2,"БПЛА"],[1,"МВШ"]].map(([k,n])=>
+    `<div class="chip"><span class="dot" style="background:${COL[k]}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+
+    `<div class="chip"><span class="dot" style="background:var(--land)"></span>Нет угрозы</div>`;
+  if(sel){
+    const f=GEO?GEO.features.find(x=>x.properties.code===sel):null;
+    const n=f?f.properties.name:sel;
+    const e=live(sel)?st[sel]:null;
+    $("info").innerHTML=`<div class="nm">${esc(n)}</div>`+
+      (e?`<div>${LBL[e.p]} · ${ago(e.ts)}</div><div style="color:var(--mut);font-size:13px;margin-top:4px">${esc(e.src)}: «${esc(e.text)}»</div>`
+         :`<div style="color:var(--mut);font-size:13px">Активных угроз нет</div>`);
+  }
+  applyZoom();
 }
 async function load(){
   try{
     const j=await (await fetch("state.json?t="+Date.now(),{cache:"no-store"})).json();
-    Object.keys(st).forEach(k=>delete st[k]);
-    Object.assign(st,j.state||{});
-    shots=j.shots||{};
+    st=j.state||{};shots=j.shots||{};
     if(j.updated)$("upd").textContent=`Данные из Telegram-каналов · обновлено ${ago(j.updated)} · угроза снимается после отбоя, без отбоя не дольше 12 ч`;
   }catch(e){}
   render();
 }
-fetch("regions.csv?t="+Date.now()).then(r=>r.text()).then(t=>{R=t.trim().split("\n").map(mk);load();setInterval(load,60000);setInterval(render,30000)});
+fetch("regions.geojson?t="+Date.now()).then(r=>r.json()).then(g=>{GEO=g;load();setInterval(load,60000);setInterval(render,30000)});
 </script>
 </body>
 </html>
