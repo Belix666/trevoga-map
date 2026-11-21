@@ -209,6 +209,7 @@ function render(){
     const a=lvl(c);
     paths[c].setAttribute("class","reg"+(a?" s"+a:"")+(sel===c?" sel":""));
   });
+  if(sel&&paths[sel]){const p=paths[sel];p.parentNode.appendChild(p)}
   applyStroke();
   const cnt={1:0,2:0,3:0};Object.keys(st).forEach(c=>{if(live(c))cnt[st[c].p]++});
   $("leg").innerHTML=[[3,"Ракеты"],[2,"БПЛА"],[1,"МВШ"]].map(([k,n])=>
