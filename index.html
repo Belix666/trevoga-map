@@ -20,11 +20,11 @@ h1{font-size:19px;margin:0 0 2px;padding-right:52px}
 .ctl{display:flex;gap:6px;justify-content:flex-end;margin:4px 4px 6px}
 .ctl button{border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;width:38px;height:34px;font:600 16px system-ui;cursor:pointer}
 #map{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
-.reg{fill:var(--land);stroke:var(--land-st);stroke-width:.6px;vector-effect:non-scaling-stroke;transition:fill .3s}
+.reg{fill:var(--land);stroke:var(--land-st);transition:fill .3s}
 .reg.s1{fill:var(--yel)}
 .reg.s2{fill:var(--org)}
 .reg.s3{fill:var(--red);animation:pulse 1.6s infinite}
-.reg.sel{stroke:var(--fg);stroke-width:2px}
+.reg.sel{stroke:var(--fg)}
 @keyframes pulse{50%{opacity:.7}}
 .rec{margin:4px 0 10px}
 .rec h2{font-size:14px;margin:0 0 6px}
@@ -80,7 +80,13 @@ paintTheme();
 
 // ---- вид карты (viewBox): пан и зум ----
 const svg=$("map");
-function setVB(){svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`)}
+function setVB(){svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);applyStroke()}
+// толщина обводки: одинаковая на экране при любом масштабе (≈0.6 px, выделенный ≈1.8 px)
+function applyStroke(){
+  const r=svg.getBoundingClientRect();if(!r.width)return;
+  const sw=vb.w/r.width*0.6;
+  Object.keys(paths).forEach(c=>paths[c].setAttribute("stroke-width",(sel===c?sw*3:sw).toFixed(4)));
+}
 function clampVB(){
   vb.w=Math.min(W,Math.max(W/10,vb.w));
   vb.h=vb.w*H/W;
@@ -203,6 +209,7 @@ function render(){
     const a=lvl(c);
     paths[c].setAttribute("class","reg"+(a?" s"+a:"")+(sel===c?" sel":""));
   });
+  applyStroke();
   const cnt={1:0,2:0,3:0};Object.keys(st).forEach(c=>{if(live(c))cnt[st[c].p]++});
   $("leg").innerHTML=[[3,"Ракеты"],[2,"БПЛА"],[1,"МВШ"]].map(([k,n])=>
     `<div class="chip"><span class="dot" style="background:${COL[k]}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+
