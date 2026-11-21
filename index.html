@@ -26,8 +26,6 @@ h1{font-size:19px;margin:0 0 2px;padding-right:52px}
 .reg.s3{fill:var(--red);animation:pulse 1.6s infinite}
 .reg.sel{stroke:var(--fg);stroke-width:2px}
 @keyframes pulse{50%{opacity:.7}}
-.smk{fill:#555;opacity:0;pointer-events:none;animation:smk 3s infinite ease-out}
-@keyframes smk{0%{opacity:.85;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-22px) scale(1.8)}}
 .rec{margin:4px 0 10px}
 .rec h2{font-size:14px;margin:0 0 6px}
 .rc{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:6px 10px;margin:0 6px 6px 0;font:inherit;font-size:13px;color:var(--fg);cursor:pointer}
@@ -58,8 +56,8 @@ h1{font-size:19px;margin:0 0 2px;padding-right:52px}
 const NS="http://www.w3.org/2000/svg";
 const LBL={3:"Ракетная опасность",2:"Угроза БПЛА",1:"МВШ (воздушный шар)"};
 const COL={3:"var(--red)",2:"var(--org)",1:"var(--yel)"};
-const TTL=12*60*60*1000,SMOKE=15*60000,RECENT=15*60000;
-let GEO=null,st={},shots={},sel=null;
+const TTL=12*60*60*1000,RECENT=15*60000;
+let GEO=null,st={},sel=null;
 let W=1000,H=541;
 let vb={x:0,y:0,w:1000,h:541};
 let paths={},boxes={};
@@ -181,7 +179,6 @@ function buildMap(){
     paths[code]=path;
   });
   svg.appendChild(base);
-  const smk=document.createElementNS(NS,"g");smk.setAttribute("id","smoke");svg.appendChild(smk);
   Object.keys(paths).forEach(c=>{const b=paths[c].getBBox();boxes[c]=b});
   fullView();
 }
@@ -206,15 +203,6 @@ function render(){
     const a=lvl(c);
     paths[c].setAttribute("class","reg"+(a?" s"+a:"")+(sel===c?" sel":""));
   });
-  const sm=$("smoke");sm.innerHTML="";
-  Object.keys(shots).forEach(c=>{
-    if(!boxes[c]||Date.now()-shots[c]>=SMOKE)return;
-    const b=boxes[c];
-    const el=document.createElementNS(NS,"circle");
-    el.setAttribute("cx",b.x+b.width/2);el.setAttribute("cy",b.y+b.height/2);
-    el.setAttribute("r",Math.max(3,Math.min(b.width,b.height)/5));
-    el.setAttribute("class","smk");sm.appendChild(el);
-  });
   const cnt={1:0,2:0,3:0};Object.keys(st).forEach(c=>{if(live(c))cnt[st[c].p]++});
   $("leg").innerHTML=[[3,"Ракеты"],[2,"БПЛА"],[1,"МВШ"]].map(([k,n])=>
     `<div class="chip"><span class="dot" style="background:${COL[k]}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+
@@ -238,7 +226,7 @@ function render(){
 async function load(){
   try{
     const j=await (await fetch("state.json?t="+Date.now(),{cache:"no-store"})).json();
-    st=j.state||{};shots=j.shots||{};
+    st=j.state||{};
     if(j.updated)$("upd").textContent=`Данные из Telegram-каналов · обновлено ${ago(j.updated)} · угроза снимается после отбоя, без отбоя не дольше 12 ч`;
   }catch(e){}
   render();
