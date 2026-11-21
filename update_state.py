@@ -7,7 +7,8 @@ from bs4 import BeautifulSoup
 BASE = Path(__file__).resolve().parent
 STATE = BASE / "state.json"
 CHANNELS = ["radarrussiia", "kupolrussia", "locatorru"]
-TTL = 45 * 60 * 1000
+# Угроза держится до отбоя. Страховка: если отбой не пришёл, снимаем через 12 ч.
+TTL = 12 * 60 * 60 * 1000
 SMOKE_TTL = 15 * 60 * 1000
 P = {"missile": 3, "uav": 2, "balloon": 1}
 ACTIVE = (r"опасност|тревог|угроз|внимани|налет|атак|пуск|летит|летят|"

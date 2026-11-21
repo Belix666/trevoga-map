@@ -34,7 +34,7 @@ h1{font-size:20px;margin:0 0 2px;padding-right:52px}
 <body>
 <button id="theme" type="button" aria-label="Переключить тему" title="Переключить тему">🌙</button>
 <h1>Карта воздушных угроз</h1>
-<div class="sub" id="upd">Данные из Telegram-каналов · обновляется примерно каждые 5 минут · угроза снимается после отбоя или через 45 мин</div>
+<div class="sub" id="upd">Данные из Telegram-каналов · угроза снимается после отбоя, без отбоя не дольше 12 ч</div>
 <div class="leg" id="leg"></div>
 <div class="card">
   <div class="scroll"><div class="grid" id="grid"></div></div>
@@ -75,7 +75,7 @@ async function load(){
     Object.keys(st).forEach(k=>delete st[k]);
     Object.assign(st,j.state||{});
     shots=j.shots||{};
-    if(j.updated)$("upd").textContent=`Данные из Telegram-каналов · обновлено ${ago(j.updated)} · угроза снимается после отбоя или через 45 мин`;
+    if(j.updated)$("upd").textContent=`Данные из Telegram-каналов · обновлено ${ago(j.updated)} · угроза снимается после отбоя, без отбоя не дольше 12 ч`;
   }catch(e){}
   render();
 }
