@@ -19,17 +19,21 @@ h1{font-size:19px;margin:0 0 2px;padding-right:52px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:6px;margin-bottom:10px}
 .ctl{display:flex;gap:6px;justify-content:flex-end;margin:4px 4px 6px}
 .ctl button{border:1px solid var(--bd);background:var(--card);color:var(--fg);border-radius:8px;width:38px;height:34px;font:600 16px system-ui;cursor:pointer}
-.mapwrap{overflow:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
-svg{display:block;width:100%;height:auto;touch-action:pan-x pan-y}
-.reg{fill:var(--land);stroke:var(--land-st);stroke-width:.8;cursor:pointer;transition:fill .3s}
-.reg:hover{stroke:var(--fg);stroke-width:1.2}
+#map{display:block;width:100%;height:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.reg{fill:var(--land);stroke:var(--land-st);stroke-width:.6px;vector-effect:non-scaling-stroke;transition:fill .3s}
 .reg.s1{fill:var(--yel)}
 .reg.s2{fill:var(--org)}
 .reg.s3{fill:var(--red);animation:pulse 1.6s infinite}
-.reg.sel{stroke:var(--fg);stroke-width:2}
+.reg.sel{stroke:var(--fg);stroke-width:2px}
 @keyframes pulse{50%{opacity:.7}}
 .smk{fill:#555;opacity:0;pointer-events:none;animation:smk 3s infinite ease-out}
 @keyframes smk{0%{opacity:.85;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-22px) scale(1.8)}}
+.rec{margin:4px 0 10px}
+.rec h2{font-size:14px;margin:0 0 6px}
+.rc{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:6px 10px;margin:0 6px 6px 0;font:inherit;font-size:13px;color:var(--fg);cursor:pointer}
+.rc.sel{outline:2px solid var(--fg);outline-offset:1px}
+.rc small{color:var(--mut)}
+.empty{color:var(--mut);font-size:13px}
 #info{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 12px;font-size:14px;margin-bottom:10px}
 .nm{font-weight:600}
 .att{font-size:11px;color:var(--mut);margin-top:6px}
@@ -41,22 +45,30 @@ svg{display:block;width:100%;height:auto;touch-action:pan-x pan-y}
 <div class="sub" id="upd">Данные из Telegram-каналов · угроза снимается после отбоя, без отбоя не дольше 12 ч</div>
 <div class="leg" id="leg"></div>
 <div class="card">
-  <div class="ctl"><button id="zin" type="button" aria-label="Приблизить">+</button><button id="zout" type="button" aria-label="Отдалить">−</button><button id="zreset" type="button" aria-label="Сбросить масштаб">⟲</button></div>
-  <div class="mapwrap" id="wrap"><svg id="map" role="img" aria-label="Карта регионов России"></svg></div>
-  <div class="att">Границы: Natural Earth (public domain)</div>
+  <div class="ctl"><button id="zin" type="button" aria-label="Приблизить">+</button><button id="zout" type="button" aria-label="Отдалить">−</button><button id="zreset" type="button" aria-label="Вся карта">⟲</button></div>
+  <svg id="map" role="img" aria-label="Карта регионов России"></svg>
+  <div class="att">Границы: Natural Earth (public domain). Двигайте карту пальцем, масштабируйте щипком.</div>
 </div>
-<div id="info">Нажмите на область, чтобы увидеть детали.</div>
+<div class="rec">
+  <h2>Тревога за последние 15 минут</h2>
+  <div id="recent"></div>
+</div>
+<div id="info">Нажмите на область или на плашку выше, чтобы увидеть детали.</div>
 <script>
 const NS="http://www.w3.org/2000/svg";
 const LBL={3:"Ракетная опасность",2:"Угроза БПЛА",1:"МВШ (воздушный шар)"};
 const COL={3:"var(--red)",2:"var(--org)",1:"var(--yel)"};
-const TTL=12*60*60*1000,SMOKE=15*60000;
-let GEO=null,st={},shots={},sel=null,zoom=1;
+const TTL=12*60*60*1000,SMOKE=15*60000,RECENT=15*60000;
+let GEO=null,st={},shots={},sel=null;
+let W=1000,H=541;
+let vb={x:0,y:0,w:1000,h:541};
+let paths={},boxes={};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ago=ts=>{const m=Math.max(0,Math.round((Date.now()-ts)/60000));if(m<1)return"только что";if(m<60)return m+" мин назад";const h=Math.round(m/60);if(h<24)return h+" ч назад";return Math.round(h/24)+" дн назад"};
 const live=c=>st[c]&&Date.now()-st[c].ts<TTL;
 const lvl=c=>live(c)?st[c].p:0;
+const nameOf=c=>{const f=GEO&&GEO.features.find(x=>x.properties.code===c);return f?f.properties.name:c};
 
 // тема
 const themeBtn=$("theme"),themeMedia=matchMedia("(prefers-color-scheme: dark)");
@@ -68,57 +80,161 @@ themeBtn.onclick=()=>{const next=currentTheme()==="dark"?"light":"dark";document
 themeMedia.addEventListener?.("change",()=>{if(!localStorage.getItem("trevoga_theme"))paintTheme()});
 paintTheme();
 
-// масштаб: ширина svg = zoom * ширина контейнера, прокрутка внутри
-function applyZoom(){const w=$("wrap").clientWidth;const s=$("map");s.style.width=(w*zoom)+"px"}
-$("zin").onclick=()=>{zoom=Math.min(4,zoom*1.4);applyZoom()};
-$("zout").onclick=()=>{zoom=Math.max(1,zoom/1.4);applyZoom()};
-$("zreset").onclick=()=>{zoom=1;applyZoom();$("wrap").scrollTo({left:0,top:0})};
-window.addEventListener("resize",applyZoom);
+// ---- вид карты (viewBox): пан и зум ----
+const svg=$("map");
+function setVB(){svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`)}
+function clampVB(){
+  vb.w=Math.min(W,Math.max(W/10,vb.w));
+  vb.h=vb.w*H/W;
+  vb.x=Math.min(W-vb.w,Math.max(0,vb.x));
+  vb.y=Math.min(H-vb.h,Math.max(0,vb.y));
+}
+function fullView(){vb={x:0,y:0,w:W,h:H};clampVB();setVB()}
+function toSvg(cx,cy){const r=svg.getBoundingClientRect();return{x:vb.x+(cx-r.left)/r.width*vb.w,y:vb.y+(cy-r.top)/r.height*vb.h}}
+function zoomAt(f,cx,cy){
+  const p=toSvg(cx,cy);
+  const nw=vb.w/f;
+  vb.x=p.x-(p.x-vb.x)*(nw/vb.w);
+  vb.y=p.y-(p.y-vb.y)*(nw/vb.w);
+  vb.w=nw;vb.h=nw*H/W;
+  clampVB();setVB();
+}
+function centerOfMap(){const r=svg.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}}
+$("zin").onclick=()=>{const c=centerOfMap();zoomAt(1.4,c.x,c.y)};
+$("zout").onclick=()=>{const c=centerOfMap();zoomAt(1/1.4,c.x,c.y)};
+$("zreset").onclick=()=>fullView();
 
-function ringsOf(g){return g.type==="Polygon"?[g.coordinates]:g.coordinates}
-function draw(){
-  const svg=$("map");
+svg.addEventListener("wheel",e=>{e.preventDefault();zoomAt(e.deltaY<0?1.15:1/1.15,e.clientX,e.clientY)},{passive:false});
+
+const ptrs=new Map();
+let pinch=null,moved=0;
+svg.addEventListener("pointerdown",e=>{
+  svg.setPointerCapture(e.pointerId);
+  ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size===1)moved=0;
+  if(ptrs.size>=2){
+    moved=1e9;
+    const [a,b]=[...ptrs.values()];
+    pinch={dist:Math.hypot(a.x-b.x,a.y-b.y),mid:{x:(a.x+b.x)/2,y:(a.y+b.y)/2}};
+  }
+});
+svg.addEventListener("pointermove",e=>{
+  if(!ptrs.has(e.pointerId))return;
+  const prev=ptrs.get(e.pointerId);
+  const cur={x:e.clientX,y:e.clientY};
+  ptrs.set(e.pointerId,cur);
+  const r=svg.getBoundingClientRect();
+  if(ptrs.size===1){
+    moved+=Math.abs(cur.x-prev.x)+Math.abs(cur.y-prev.y);
+    vb.x-=(cur.x-prev.x)*vb.w/r.width;
+    vb.y-=(cur.y-prev.y)*vb.h/r.height;
+    clampVB();setVB();
+  }else if(ptrs.size>=2&&pinch){
+    const [a,b]=[...ptrs.values()];
+    const dist=Math.hypot(a.x-b.x,a.y-b.y);
+    const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+    const f=dist/pinch.dist;
+    const p=toSvg(pinch.mid.x,pinch.mid.y);
+    const nw=vb.w/f;
+    vb.x=p.x-(p.x-vb.x)*(nw/vb.w);
+    vb.y=p.y-(p.y-vb.y)*(nw/vb.w);
+    vb.w=nw;vb.h=nw*H/W;
+    vb.x-=(mid.x-pinch.mid.x)*vb.w/r.width;
+    vb.y-=(mid.y-pinch.mid.y)*vb.h/r.height;
+    clampVB();setVB();
+    pinch={dist,mid};
+  }
+});
+function endPtr(e){
+  const wasSingle=ptrs.size===1;
+  ptrs.delete(e.pointerId);
+  if(e.type==="pointerup"&&wasSingle&&moved<8){
+    const el=document.elementFromPoint(e.clientX,e.clientY);
+    const p=el&&el.closest?el.closest("path[data-code]"):null;
+    if(p)selectRegion(p.dataset.code,false);
+  }
+  if(ptrs.size<2)pinch=null;
+}
+svg.addEventListener("pointerup",endPtr);
+svg.addEventListener("pointercancel",endPtr);
+
+// ---- построение карты (один раз) ----
+function buildMap(){
   svg.innerHTML="";
-  if(!GEO)return;
-  svg.setAttribute("viewBox",`0 0 ${GEO.meta.width} ${GEO.meta.height}`);
+  paths={};boxes={};
+  W=GEO.meta.width;H=GEO.meta.height;
+  svg.setAttribute("viewBox",`0 0 ${W} ${H}`);
+  const base=document.createElementNS(NS,"g");
+  base.setAttribute("id","base");
   GEO.features.forEach(f=>{
-    const code=f.properties.code,a=lvl(code);
-    const grp=document.createElementNS(NS,"g");
+    const code=f.properties.code;
     let d="";
-    ringsOf(f.geometry).forEach(poly=>poly.forEach(r=>{d+="M"+r.map(p=>p[0]+" "+p[1]).join("L")+"Z"}));
+    const polys=f.geometry.type==="Polygon"?[f.geometry.coordinates]:f.geometry.coordinates;
+    polys.forEach(poly=>poly.forEach(r=>{d+="M"+r.map(p=>p[0]+" "+p[1]).join("L")+"Z"}));
     const path=document.createElementNS(NS,"path");
     path.setAttribute("d",d);
     path.setAttribute("fill-rule","evenodd");
-    path.setAttribute("class","reg"+(a?" s"+a:"")+(sel===code?" sel":""));
-    path.addEventListener("click",()=>{sel=code;render()});
+    path.setAttribute("class","reg");
+    path.dataset.code=code;
     const t=document.createElementNS(NS,"title");t.textContent=f.properties.name;path.appendChild(t);
-    grp.appendChild(path);
-    if(shots[code]&&Date.now()-shots[code]<SMOKE){
-      const b=path.getBBox();
-      const c=document.createElementNS(NS,"circle");
-      c.setAttribute("cx",b.x+b.width/2);c.setAttribute("cy",b.y+b.height/2);
-      c.setAttribute("r",Math.max(4,Math.min(b.width,b.height)/5));
-      c.setAttribute("class","smk");grp.appendChild(c);
-    }
-    svg.appendChild(grp);
+    base.appendChild(path);
+    paths[code]=path;
   });
+  svg.appendChild(base);
+  const smk=document.createElementNS(NS,"g");smk.setAttribute("id","smoke");svg.appendChild(smk);
+  Object.keys(paths).forEach(c=>{const b=paths[c].getBBox();boxes[c]=b});
+  fullView();
 }
+function focusRegion(code){
+  const b=boxes[code];if(!b)return;
+  let w=Math.max(b.width,b.height*W/H)*1.6;
+  w=Math.max(w,W/10);
+  const h=w*H/W;
+  vb={x:b.x+b.width/2-w/2,y:b.y+b.height/2-h/2,w,h};
+  clampVB();setVB();
+}
+function selectRegion(code,focus){
+  sel=code;
+  if(focus)focusRegion(code);
+  render();
+}
+
+// ---- отрисовка состояния ----
 function render(){
-  draw();
+  if(!GEO)return;
+  Object.keys(paths).forEach(c=>{
+    const a=lvl(c);
+    paths[c].setAttribute("class","reg"+(a?" s"+a:"")+(sel===c?" sel":""));
+  });
+  const sm=$("smoke");sm.innerHTML="";
+  Object.keys(shots).forEach(c=>{
+    if(!boxes[c]||Date.now()-shots[c]>=SMOKE)return;
+    const b=boxes[c];
+    const el=document.createElementNS(NS,"circle");
+    el.setAttribute("cx",b.x+b.width/2);el.setAttribute("cy",b.y+b.height/2);
+    el.setAttribute("r",Math.max(3,Math.min(b.width,b.height)/5));
+    el.setAttribute("class","smk");sm.appendChild(el);
+  });
   const cnt={1:0,2:0,3:0};Object.keys(st).forEach(c=>{if(live(c))cnt[st[c].p]++});
   $("leg").innerHTML=[[3,"Ракеты"],[2,"БПЛА"],[1,"МВШ"]].map(([k,n])=>
     `<div class="chip"><span class="dot" style="background:${COL[k]}"></span>${n}: <b>${cnt[k]}</b></div>`).join("")+
     `<div class="chip"><span class="dot" style="background:var(--land)"></span>Нет угрозы</div>`;
+
+  const now=Date.now();
+  const recent=Object.keys(st).filter(c=>live(c)&&now-st[c].ts<=RECENT).sort((a,b)=>st[b].ts-st[a].ts);
+  $("recent").innerHTML=recent.length?recent.map(c=>
+    `<button class="rc${sel===c?" sel":""}" type="button" data-code="${c}"><span class="dot" style="background:${COL[st[c].p]}"></span>${esc(nameOf(c))} <small>${LBL[st[c].p]}, ${ago(st[c].ts)}</small></button>`).join("")
+    :`<div class="empty">За последние 15 минут новых тревог нет.</div>`;
+  document.querySelectorAll("#recent .rc").forEach(b=>b.onclick=()=>selectRegion(b.dataset.code,true));
+
   if(sel){
-    const f=GEO?GEO.features.find(x=>x.properties.code===sel):null;
-    const n=f?f.properties.name:sel;
     const e=live(sel)?st[sel]:null;
-    $("info").innerHTML=`<div class="nm">${esc(n)}</div>`+
+    $("info").innerHTML=`<div class="nm">${esc(nameOf(sel))}</div>`+
       (e?`<div>${LBL[e.p]} · ${ago(e.ts)}</div><div style="color:var(--mut);font-size:13px;margin-top:4px">${esc(e.src)}: «${esc(e.text)}»</div>`
          :`<div style="color:var(--mut);font-size:13px">Активных угроз нет</div>`);
   }
-  applyZoom();
 }
+
 async function load(){
   try{
     const j=await (await fetch("state.json?t="+Date.now(),{cache:"no-store"})).json();
@@ -127,7 +243,7 @@ async function load(){
   }catch(e){}
   render();
 }
-fetch("regions.geojson?t="+Date.now()).then(r=>r.json()).then(g=>{GEO=g;load();setInterval(load,60000);setInterval(render,30000)});
+fetch("regions.geojson?t="+Date.now()).then(r=>r.json()).then(g=>{GEO=g;buildMap();load();setInterval(load,60000);setInterval(render,30000)});
 </script>
 </body>
 </html>
